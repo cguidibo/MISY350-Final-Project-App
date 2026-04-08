@@ -1,32 +1,42 @@
 [
-    {
-        "id": 1,
-        "name": "Espresso",
-        "price": 2.5,
-        "stock": 40
-    },
-    {
-        "id": 2,
-        "name": "Latte",
-        "price": 4.25,
-        "stock": 25
-    },
-    {
-        "id": 3,
-        "name": "Cold Brew",
-        "price": 3.75,
-        "stock": 30
-    },
-    {
-        "id": 4,
-        "name": "Mocha",
-        "price": 4.5,
-        "stock": 20
-    },
-    {
-        "id": 5,
-        "name": "Blueberry Muffin",
-        "price": 2.95,
-        "stock": 18
-    }
+  {
+    "name": "Espresso",
+    "price": 2.5,
+    "stock": 40,
+    "item_id": 1,
+    "category": "Other",
+    "flagged": false
+  },
+  {
+    "name": "Latte",
+    "price": 4.25,
+    "stock": 25,
+    "item_id": 2,
+    "category": "Other",
+    "flagged": false
+  },
+  {
+    "name": "Cold Brew",
+    "price": 3.75,
+    "stock": 30,
+    "item_id": 3,
+    "category": "Other",
+    "flagged": false
+  },
+  {
+    "name": "Mocha",
+    "price": 4.5,
+    "stock": 20,
+    "item_id": 4,
+    "category": "Other",
+    "flagged": false
+  },
+  {
+    "name": "Blueberry Muffin",
+    "price": 2.95,
+    "stock": 18,
+    "item_id": 5,
+    "category": "Other",
+    "flagged": false
+  }
 ]
