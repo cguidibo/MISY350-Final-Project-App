@@ -305,3 +305,92 @@ if st.session_state["role"] is None:
                     save_users()
                     time.sleep(1)
                 st.success(f"Account created! You can now log in as **{uname}**.")
+
+# OWNER DASHBOARD 
+elif st.session_state["role"] == "Owner":
+
+    # ── Owner: Home ──
+    if st.session_state["page"] == "home":
+        st.title("Owner Dashboard")
+        st.markdown("What would you like to manage today?")
+        st.divider()
+
+        col1, col2 = st.columns(2)
+        with col1:
+            with st.container(border=True):
+                st.markdown("### Catalog")
+                st.caption("View and search all products.")
+                if st.button("Open Catalog", use_container_width=True, key="go_catalog"):
+                    st.session_state["page"] = "catalog"
+                    st.rerun()
+
+            with st.container(border=True):
+                st.markdown("### Edit / Restock")
+                st.caption("Update prices, categories, and stock levels.")
+                if st.button("Open Editor", use_container_width=True, key="go_edit"):
+                    st.session_state["page"] = "edit"
+                    st.rerun()
+
+        with col2:
+            with st.container(border=True):
+                st.markdown("### Add Product")
+                st.caption("Add a new item to the catalog.")
+                if st.button("Add Product", use_container_width=True, key="go_add"):
+                    st.session_state["page"] = "add"
+                    st.rerun()
+
+            with st.container(border=True):
+                st.markdown("### Remove Product")
+                st.caption("Delete discontinued items.")
+                if st.button("Remove Product", use_container_width=True, key="go_delete"):
+                    st.session_state["page"] = "delete"
+                    st.rerun()
+
+        st.divider()
+        with st.container(border=True):
+            st.markdown("### Sales Log")
+            st.caption("Review all employee-logged transactions.")
+            if st.button("View Sales Log", use_container_width=True, key="go_sales"):
+                st.session_state["page"] = "sales"
+                st.rerun()
+
+    # Owner: Catalog
+    elif st.session_state["page"] == "catalog":
+        if st.button("← Back", key="catalog_back"):
+            st.session_state["page"] = "home"
+            st.rerun()
+
+        st.header("Product Catalog")
+        search = st.text_input(
+            "Search by name", placeholder="e.g. Croissant",
+            key="owner_search"                          # static key
+        )
+        inventory = st.session_state["inventory"]
+        filtered  = (
+            [i for i in inventory if search.lower() in i["name"].lower()]
+            if search else inventory
+        )
+        st.divider()
+
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Products",    len(inventory))
+        col2.metric("Total Units",       sum(i["stock"] for i in inventory))
+        col3.metric("Critically Low", sum(1 for i in inventory if i["stock"] < 5))
+        st.divider()
+
+        if not filtered:
+            st.info("No items match your search.")
+        else:
+            for item in filtered:
+                with st.container(border=True):
+                    c1, c2, c3, c4, c5 = st.columns([3, 2, 2, 2, 2])
+                    c1.markdown(f"**{item['name']}**")
+                    c2.markdown(f"_{item.get('category', 'Other')}_")
+                    c3.markdown(f"${item['price']:.2f}")
+                    c4.markdown(f"Stock: **{item['stock']}**")
+                    if item["stock"] == 0:
+                        c5.error("Out of Stock")
+                    elif item["stock"] < 5:
+                        c5.warning("Low")
+                    else:
+                        c5.success("OK")
