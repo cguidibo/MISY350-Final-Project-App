@@ -598,3 +598,191 @@ elif st.session_state["role"] == "Owner":
                     c3.markdown(f"${sale['total']:.2f}")
                     c4.markdown(f"_{sale['logged_by']} · {sale['date']}_")
 
+
+# EMPLOYEE DASHBOARD 
+elif st.session_state["role"] == "Employee":
+
+    user = st.session_state["user"]
+
+    if st.session_state["page"] == "home":
+        st.title(f"🏪 Welcome, {user['username']}!")
+        st.markdown("What would you like to do today?")
+        st.divider()
+
+        col1, col2 = st.columns(2)
+        with col1:
+            with st.container(border=True):
+                st.markdown("### Log a Sale")
+                st.caption("Record items sold and update stock.")
+                if st.button("Log a Sale", use_container_width=True, key="go_log_sale"):
+                    st.session_state["page"] = "log_sale"
+                    st.rerun()
+
+        with col2:
+            with st.container(border=True):
+                st.markdown("### View Catalog")
+                st.caption("Browse products and flag low items.")
+                if st.button("View Catalog", use_container_width=True, key="go_emp_catalog"):
+                    st.session_state["page"] = "emp_catalog"
+                    st.rerun()
+
+
+    elif st.session_state["page"] == "log_sale":
+        if st.button("← Back", key="log_sale_back"):
+            st.session_state["page"] = "home"
+            st.rerun()
+
+        st.header("🛒 Log a Sale")
+        inventory = st.session_state["inventory"]
+        available = [i for i in inventory if i["stock"] > 0]
+
+        left_col, right_col = st.columns([1.4, 1])
+
+        with left_col:
+            if not available:
+                st.error("No items currently in stock.")
+            else:
+                with st.container(border=True):
+                    st.subheader("Sale Details")
+
+                    selected_item = st.selectbox(
+                        "Select an Item",
+                        options=available,
+                        format_func=lambda x: f"{x['name']} (Stock: {x['stock']})",
+                        key="sale_item_select"
+                    )
+                    quantity = st.number_input(
+                        "Quantity",
+                        min_value=1,
+                        step=1,
+                        key="sale_quantity"
+                    )
+
+                    st.markdown(f"**Unit price:** ${selected_item['price']:.2f}")
+                    st.markdown(f"**Sale total:** ${round(selected_item['price'] * quantity, 2):.2f}")
+
+    
+                    if st.button("Create Order", type="primary",
+                                 use_container_width=True, key="create_order_btn"):
+                        if selected_item["stock"] < quantity:
+                            st.error(
+                                f"❌ Not enough stock — only **{selected_item['stock']}** available."
+                            )
+                        else:
+                            with st.spinner("Creating order..."):
+                                total = round(quantity * selected_item["price"], 2)
+
+                                # Update stock
+                                for item in st.session_state["inventory"]:
+                                    if item["item_id"] == selected_item["item_id"]:
+                                        item["stock"] -= quantity
+                                        if item["stock"] < 5:
+                                            item["flagged"] = True
+                                        break
+
+                                # Append sale record
+                                new_sale = {
+                                    "sale_id":    str(uuid.uuid4())[:8].upper(),
+                                    "item":       selected_item["name"],
+                                    "item_id":    selected_item["item_id"],
+                                    "quantity":   quantity,
+                                    "unit_price": selected_item["price"],
+                                    "total":      total,
+                                    "logged_by":  user["username"],
+                                    "date":       time.strftime("%Y-%m-%d %H:%M"),
+                                }
+                                st.session_state["sales"].append(new_sale)
+
+                                # Save both JSON files  
+                                save_inventory()
+                                save_sales()
+
+                                st.balloons()              
+                                time.sleep(2)
+
+                            st.session_state["page"] = "home"
+                            st.rerun()
+
+        with right_col:
+            st.subheader("Shop Assistant")
+
+            with st.container(height=250, border=True):
+                for message in st.session_state["messages"]:
+                    with st.chat_message(message["role"]):
+                        st.write(message["content"])
+
+            user_input = st.chat_input("Ask a question...")
+
+            if user_input:
+                with st.spinner("Thinking..."):
+                    st.session_state["messages"].append(
+                        {"role": "user", "content": user_input}
+                    )
+                    ai_response = simulated_chatbot(user_input)
+                    st.session_state["messages"].append(
+                        {"role": "assistant", "content": ai_response}
+                    )
+                    time.sleep(1)
+                st.rerun()
+
+            if st.button("Clear Chat", key="clear_chat_btn"):
+                st.session_state["messages"] = [
+                    {"role": "assistant", "content": "Hi! How can I help you today?"}
+                ]
+                st.rerun()
+
+    elif st.session_state["page"] == "emp_catalog":
+        if st.button(" Back", key="emp_catalog_back"):
+            st.session_state["page"] = "home"
+            st.rerun()
+
+        st.header("Current Catalog")
+
+        search = st.text_input(
+            " Search by name", placeholder="e.g. Bagel",
+            key="emp_search"                       
+        )
+        inventory = st.session_state["inventory"]
+        filtered = (
+            [i for i in inventory if search.lower() in i["name"].lower()]
+            if search else inventory
+        )
+        st.divider()
+
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Products",   len(inventory))
+        col2.metric("Total Units",      sum(i["stock"] for i in inventory))
+        col3.metric("Low / Flagged", sum(1 for i in inventory if i["stock"] < 5))
+        st.divider()
+
+        if not filtered:
+            st.info("No items match your search.")
+        else:
+            for item in filtered:
+                with st.container(border=True):
+                    c1, c2, c3, c4, c5 = st.columns([3, 2, 2, 2, 2])
+                    c1.markdown(f"**{item['name']}**")
+                    c2.markdown(f"_{item.get('category', 'Other')}_")
+                    c3.markdown(f"${item['price']:.2f}")
+                    c4.markdown(f"Stock: **{item['stock']}**")
+
+                    if item["stock"] == 0:
+                        c5.error(" Out of Stock")
+                    elif item["stock"] < 5:
+                        c5.warning(" Low")
+                    else:
+                        c5.success("OK")
+
+                    flag_label = " Unflag" if item.get("flagged") else "Flag"
+                    flag_key = item.get("item_id", item.get("id", item.get("name")))
+                    if st.button(
+                        flag_label,
+                        key=f"flag_{flag_key}",   # dynamic key per item
+                        use_container_width=False
+                    ):
+                        for i in st.session_state["inventory"]:
+                            if i["item_id"] == item["item_id"]:
+                                i["flagged"] = not i.get("flagged", False)
+                                break
+                        save_inventory()
+                        st.rerun()
