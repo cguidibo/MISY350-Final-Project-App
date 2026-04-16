@@ -394,3 +394,207 @@ elif st.session_state["role"] == "Owner":
                         c5.warning("Low")
                     else:
                         c5.success("OK")
+
+    # Owner: Add Product
+    elif st.session_state["page"] == "add":
+        if st.button("← Back", key="add_back"):
+            st.session_state["page"] = "home"
+            st.rerun()
+
+        st.header("Add a New Product")
+
+        with st.container(border=True):
+            st.subheader("New Product Details")
+            col1, col2 = st.columns(2)
+
+            with col1:
+                new_name = st.text_input(
+                    "Product Name", placeholder="e.g. Almond Croissant",
+                    key="new_product_name"
+                )
+                new_price = st.number_input(
+                    "Price ($)", min_value=0.01, value=1.00,
+                    step=0.25, key="new_product_price"
+                )
+
+            with col2:
+                new_stock = st.number_input(
+                    "Initial Stock", min_value=0, value=10,
+                    step=1, key="new_product_stock"
+                )
+                new_category = st.selectbox(
+                    "Category",
+                    ["Bread", "Pastry", "Dessert", "Beverage", "Other"],
+                    key="new_product_category"
+                )
+
+            add_btn = st.button(
+                "Add Product", type="primary",
+                use_container_width=True, key="add_product_btn"
+            )
+
+        if add_btn:
+            if not new_name.strip():
+                st.warning("Please enter a product name.")
+            elif any(i["name"].lower() == new_name.strip().lower()
+                     for i in st.session_state["inventory"]):
+                st.error("A product with that name already exists.")
+            else:
+                with st.spinner("Adding product..."):
+                    new_id = max(
+                        (i["item_id"] for i in st.session_state["inventory"]), default=0
+                    ) + 1
+                    st.session_state["inventory"].append({
+                        "item_id":  new_id,
+                        "name":     new_name.strip(),
+                        "price":    round(new_price, 2),
+                        "stock":    new_stock,
+                        "category": new_category,
+                        "flagged":  False,
+                    })
+                    save_inventory()
+                    time.sleep(1)
+                st.success(f"**{new_name.strip()}** added!")
+                st.session_state["page"] = "home"
+                st.rerun()
+
+    # Owner: Edit / Restock
+    elif st.session_state["page"] == "edit":
+        if st.button("Back", key="edit_back"):
+            st.session_state["page"] = "home"
+            st.rerun()
+
+        st.header("Edit or Restock a Product")
+        inventory  = st.session_state["inventory"]
+
+        with st.container(border=True):
+            st.subheader("Select a Product")
+
+            edit_item = st.selectbox(
+                "Choose product to edit",
+                options=inventory,
+                format_func=lambda x: f"{x['name']} (Stock: {x['stock']})",
+                key="edit_item_select"
+            )
+
+            st.divider()
+            st.subheader("Update Details")
+            col1, col2 = st.columns(2)
+
+            with col1:
+                updated_price = st.number_input(
+                    "New Price ($)", min_value=0.01,
+                    value=float(edit_item["price"]),
+                    step=0.25, key=f"edit_price_{edit_item['item_id']}"
+                )
+                add_stock = st.number_input(
+                    "Units to Add to Stock", min_value=0, value=0,
+                    step=1, key=f"edit_stock_{edit_item['item_id']}"
+                )
+
+            with col2:
+                updated_category = st.selectbox(
+                    "Category",
+                    ["Bread", "Pastry", "Dessert", "Beverage", "Other"],
+                    index=["Bread", "Pastry", "Dessert", "Beverage", "Other"].index(
+                        edit_item.get("category", "Other")
+                    ),
+                    key=f"edit_cat_{edit_item['item_id']}"
+                )
+                st.markdown(f"**Current stock:** {edit_item['stock']} units")
+                if add_stock > 0:
+                    st.markdown(f"**New stock:** {edit_item['stock'] + add_stock} units")
+
+            update_btn = st.button(
+                "Save Changes", type="primary",
+                use_container_width=True, key="update_btn"
+            )
+
+        if update_btn:
+            with st.spinner("Saving changes..."):
+                for item in st.session_state["inventory"]:
+                    if item["item_id"] == edit_item["item_id"]:
+                        item["price"]    = round(updated_price, 2)
+                        item["stock"]   += add_stock
+                        item["category"] = updated_category
+                        break
+                save_inventory()
+                time.sleep(1)
+            st.success(f"**{edit_item['name']}** updated.")
+            st.session_state["page"] = "home"
+            st.rerun()
+
+    # Owner: Delete Product
+    elif st.session_state["page"] == "delete":
+        if st.button("← Back", key="delete_back"):
+            st.session_state["page"] = "home"
+            st.rerun()
+
+        st.header("Remove a Discontinued Product")
+        inventory = st.session_state["inventory"]
+
+        with st.container(border=True):
+            st.subheader("Select Product to Remove")
+            delete_item = st.selectbox(
+                "Choose product",
+                options=inventory,
+                format_func=lambda x: f"{x['name']} (Stock: {x['stock']})",
+                key="delete_item_select"
+            )
+
+            col1, col2 = st.columns(2)
+            col1.markdown(f"**Price:** ${delete_item['price']:.2f}")
+            col2.markdown(f"**Stock remaining:** {delete_item['stock']}")
+
+            st.warning(
+                f"This will permanently remove **{delete_item['name']}** from the catalog."
+            )
+            confirm = st.checkbox(
+                "I confirm I want to delete this product.",
+                key="confirm_delete"
+            )
+            delete_btn = st.button(
+                "Delete Product", type="primary",
+                use_container_width=True, key="delete_btn"
+            )
+
+        if delete_btn:
+            if not confirm:
+                st.error("Please check the confirmation box first.")
+            else:
+                with st.spinner("Removing product..."):
+                    st.session_state["inventory"] = [
+                        i for i in st.session_state["inventory"]
+                        if i["item_id"] != delete_item["item_id"]
+                    ]
+                    save_inventory()
+                    time.sleep(1)
+                st.success(f"**{delete_item['name']}** removed.")
+                st.session_state["page"] = "home"
+                st.rerun()
+
+    #Owner: Sales Log 
+    elif st.session_state["page"] == "sales":
+        if st.button("← Back", key="sales_back"):
+            st.session_state["page"] = "home"
+            st.rerun()
+
+        st.header("Sales Log")
+        sales = st.session_state["sales"]
+
+        if not sales:
+            st.info("No sales have been logged yet.")
+        else:
+            col1, col2 = st.columns(2)
+            col1.metric("Total Transactions", len(sales))
+            col2.metric("Total Revenue",      f"${sum(s['total'] for s in sales):.2f}")
+            st.divider()
+
+            for sale in reversed(sales):
+                with st.container(border=True):
+                    c1, c2, c3, c4 = st.columns([3, 2, 2, 3])
+                    c1.markdown(f"**{sale['item']}**")
+                    c2.markdown(f"Qty: {sale['quantity']}")
+                    c3.markdown(f"${sale['total']:.2f}")
+                    c4.markdown(f"_{sale['logged_by']} · {sale['date']}_")
+
