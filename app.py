@@ -100,3 +100,81 @@ def load_users():
     with open(users_file, "w", encoding="utf-8") as f:
         json.dump(default, f, indent=2)
     return default
+
+#Initalizing Session State 
+
+if "logged_in" not in st.session_state:
+    st.session_state["logged_in"] = False
+
+if "user" not in st.session_state:
+    st.session_state["user"] = None
+
+if "role" not in st.session_state:
+    st.session_state["role"] = None
+
+if "page" not in st.session_state:          
+    st.session_state["page"] = "login"
+
+if "inventory" not in st.session_state:
+    st.session_state["inventory"] = load_inventory()
+
+if "sales" not in st.session_state:
+    st.session_state["sales"] = load_sales()
+
+if "users" not in st.session_state:
+    st.session_state["users"] = load_users()
+
+if "messages" not in st.session_state:     
+    st.session_state["messages"] = [
+        {"role": "assistant", "content": "Hi! How can I help you today?"}
+    ]
+
+#Chatbox Responses
+
+def simulated_chatbot(message):
+    message = message.lower().strip()
+    inventory = st.session_state["inventory"]
+
+    # Response 1 
+    if any(w in message for w in ["low", "running out", "low stock", "almost out"]):
+        low = [i for i in inventory if i["stock"] < 5]
+        if not low:
+            return "No items are critically low right now."
+        lines = "\n".join(f"- **{i['name']}**: {i['stock']} left" for i in low)
+        return f" **Items running low (stock < 5):**\n\n{lines}"
+
+    # Response 2 
+    elif any(w in message for w in ["flag", "flagged", "marked", "alert"]):
+        flagged = [i for i in inventory if i.get("flagged")]
+        if not flagged:
+            return "No items are currently flagged."
+        lines = "\n".join(f"- **{i['name']}** ({i['stock']} in stock)" for i in flagged)
+        return f" **Flagged items:**\n\n{lines}"
+
+    # Response 3 
+    elif any(w in message for w in ["value", "worth", "total value", "inventory value"]):
+        total = sum(i["price"] * i["stock"] for i in inventory)
+        return f"Total estimated inventory value: **${total:,.2f}**"
+
+    # Response 4 
+    elif any(w in message for w in ["most stock", "highest stock", "most items", "best stocked"]):
+        top = max(inventory, key=lambda i: i["stock"])
+        return f"Best-stocked item: **{top['name']}** with **{top['stock']}** units."
+
+    # Response 5
+    elif any(w in message for w in ["help", "what can you", "commands", "hi", "hello", "hey"]):
+        return (
+            " Here's what you can ask me:\n\n"
+            "- *What items are low on stock?*\n"
+            "- *Are there any flagged items?*\n"
+            "- *What is the total inventory value?*\n"
+            "- *What item has the most stock?*"
+        )
+
+    # Fallback
+    return (
+        " I'm not sure about that yet. Try:\n"
+        "- *What items are low on stock?*\n"
+        "- *What is the total inventory value?*\n"
+        "- *Are there any flagged items?*"
+    )
